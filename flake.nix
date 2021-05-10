@@ -15,6 +15,15 @@
           name = "playwright";
           src = ./.;
         };
+
+        # requisites for https://github.com/pypa/setuptools_scm/issues/278
+        # SETUPTOOLS_SCM_DEBUG=1 python setup.py --version
+        devShell = pkgs.mkShell {
+          buildInputs = with pkgs.python3Packages; [ 
+            setuptools
+            wheel 
+          ];
+        };
       }
     );
 }
