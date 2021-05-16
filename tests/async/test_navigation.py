@@ -440,9 +440,9 @@ async def test_wait_for_nav_should_work(page, server):
 
 async def test_wait_for_nav_should_respect_timeout(page, server):
     with pytest.raises(Error) as exc_info:
-        async with page.expect_navigation(url="**/frame.html", timeout=5000):
+        async with page.expect_navigation(url="**/frame.html", timeout=2500):
             await page.goto(server.EMPTY_PAGE)
-    assert "Timeout 5000ms exceeded" in exc_info.value.message
+    assert "Timeout 2500ms exceeded" in exc_info.value.message
 
 
 async def test_wait_for_nav_should_work_with_both_domcontentloaded_and_load(
@@ -536,7 +536,6 @@ async def test_wait_for_nav_should_work_with_dom_history_back_forward(page, serv
     assert page.url == server.PREFIX + "/second.html"
 
 
-@pytest.mark.skip_browser("firefox")
 async def test_wait_for_nav_should_work_when_subframe_issues_window_stop(page, server):
     server.set_route("/frames/style.css", lambda _: None)
     navigation_promise = asyncio.create_task(
@@ -866,9 +865,9 @@ async def test_frame_goto_should_continue_after_client_redirect(page, server):
     url = server.PREFIX + "/frames/child-redirect.html"
 
     with pytest.raises(Error) as exc_info:
-        await page.goto(url, timeout=5000, wait_until="networkidle")
+        await page.goto(url, timeout=2500, wait_until="networkidle")
 
-    assert "Timeout 5000ms exceeded." in exc_info.value.message
+    assert "Timeout 2500ms exceeded." in exc_info.value.message
     assert (
         f'navigating to "{url}", waiting until "networkidle"' in exc_info.value.message
     )
@@ -970,7 +969,7 @@ def expect_ssl_error(error_message: str, browser_name: str) -> None:
         if sys.platform == "darwin":
             assert "The certificate for this server is invalid" in error_message
         elif sys.platform == "win32":
-            assert "SSL connect error" in error_message
+            assert "SSL peer certificate or SSH remote key was not OK" in error_message
         else:
             assert "Unacceptable TLS certificate" in error_message
     else:

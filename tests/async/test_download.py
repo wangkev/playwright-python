@@ -64,7 +64,9 @@ async def test_should_report_downloads_with_accept_downloads_false(page: Page, s
         await download.path()
     except Error as exc:
         error = exc
-    assert "accept_downloads" in await download.failure()
+    failure_reason = await download.failure()
+    assert failure_reason
+    assert "accept_downloads" in failure_reason
     assert error
     assert "accept_downloads: True" in error.message
 
@@ -192,7 +194,7 @@ async def test_should_error_when_saving_after_deletion(tmpdir, browser, server):
     await download.delete()
     with pytest.raises(Error) as exc:
         await download.save_as(user_path)
-    assert "Download already deleted. Save before deleting." in exc.value.message
+    assert "Target page, context or browser has been closed" in exc.value.message
     await page.close()
 
 

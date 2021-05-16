@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import base64
 import json
 from pathlib import Path
 from types import SimpleNamespace
@@ -25,6 +26,7 @@ from playwright._impl._api_structures import (
     ViewportSize,
 )
 from playwright._impl._browser_context import BrowserContext
+from playwright._impl._cdp_session import CDPSession
 from playwright._impl._connection import ChannelOwner, from_channel
 from playwright._impl._helper import ColorScheme, is_safe_close_error, locals_to_params
 from playwright._impl._network import serialize_headers
@@ -47,6 +49,8 @@ class Browser(ChannelOwner):
         self._browser_type = parent
         self._is_connected = True
         self._is_closed_or_closing = False
+        self._is_remote = False
+        self._is_connected_over_websocket = False
 
         self._contexts: List[BrowserContext] = []
         self._channel.on("close", lambda _: self._on_close())
@@ -56,7 +60,7 @@ class Browser(ChannelOwner):
 
     def _on_close(self) -> None:
         self._is_connected = False
-        self.emit(Browser.Events.Disconnected)
+        self.emit(Browser.Events.Disconnected, self)
         self._is_closed_or_closing = True
 
     @property
@@ -69,6 +73,7 @@ class Browser(ChannelOwner):
     async def new_context(
         self,
         viewport: ViewportSize = None,
+        screen: ViewportSize = None,
         noViewport: bool = None,
         ignoreHTTPSErrors: bool = None,
         javaScriptEnabled: bool = None,
@@ -107,6 +112,7 @@ class Browser(ChannelOwner):
     async def new_page(
         self,
         viewport: ViewportSize = None,
+        screen: ViewportSize = None,
         noViewport: bool = None,
         ignoreHTTPSErrors: bool = None,
         javaScriptEnabled: bool = None,
@@ -148,10 +154,33 @@ class Browser(ChannelOwner):
         except Exception as e:
             if not is_safe_close_error(e):
                 raise e
+        if self._is_connected_over_websocket:
+            await self._connection.stop_async()
 
     @property
     def version(self) -> str:
         return self._initializer["version"]
+
+    async def new_browser_cdp_session(self) -> CDPSession:
+        return from_channel(await self._channel.send("newBrowserCDPSession"))
+
+    async def start_tracing(
+        self,
+        page: Page = None,
+        path: Union[str, Path] = None,
+        screenshots: bool = None,
+        categories: List[str] = None,
+    ) -> None:
+        params = locals_to_params(locals())
+        if page:
+            params["page"] = page._channel
+        if path:
+            params["path"] = str(path)
+        await self._channel.send("startTracing", params)
+
+    async def stop_tracing(self) -> bytes:
+        encoded_binary = await self._channel.send("stopTracing")
+        return base64.b64decode(encoded_binary)
 
 
 def normalize_context_params(is_sync: bool, params: Dict) -> None:

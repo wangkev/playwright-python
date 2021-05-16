@@ -14,10 +14,12 @@
 
 import fnmatch
 import math
+import os
 import re
 import sys
 import time
 import traceback
+from pathlib import Path
 from types import TracebackType
 from typing import (
     TYPE_CHECKING,
@@ -57,6 +59,7 @@ BrowserChannel = Literal[
     "chrome-beta",
     "chrome-canary",
     "chrome-dev",
+    "firefox-stable",
     "msedge",
     "msedge-beta",
     "msedge-canary",
@@ -168,13 +171,14 @@ def parse_error(error: ErrorPayload) -> Error:
     base_error_class = Error
     if error.get("name") == "TimeoutError":
         base_error_class = TimeoutError
-    return base_error_class(
-        cast(str, patch_error_message(error.get("message"))), error["stack"]
-    )
+    exc = base_error_class(cast(str, patch_error_message(error.get("message"))))
+    exc.name = error["name"]
+    exc.stack = error["stack"]
+    return exc
 
 
 def patch_error_message(message: Optional[str]) -> Optional[str]:
-    if not message:
+    if message is None:
         return None
 
     match = re.match(r"(\w+)(: expected .*)", message)
@@ -232,3 +236,9 @@ to_snake_case_regex = re.compile("((?<=[a-z0-9])[A-Z]|(?!^)[A-Z](?=[a-z]))")
 
 def to_snake_case(name: str) -> str:
     return to_snake_case_regex.sub(r"_\1", name).lower()
+
+
+def make_dirs_for_file(path: Union[Path, str]) -> None:
+    if not os.path.isabs(path):
+        path = Path.cwd() / path
+    os.makedirs(os.path.dirname(path), exist_ok=True)

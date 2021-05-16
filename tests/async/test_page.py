@@ -58,8 +58,8 @@ async def test_close_should_run_beforeunload_if_asked_for(
         assert dialog.message == "Leave?"
     else:
         assert (
-            dialog.message
-            == "This page is asking you to confirm that you want to leave - data you have entered may not be saved."
+            "This page is asking you to confirm that you want to leave"
+            in dialog.message
         )
     async with page.expect_event("close"):
         await dialog.accept()
@@ -398,6 +398,7 @@ async def test_page_error_should_fire(page, server, is_webkit):
     async with page.expect_event("pageerror") as error_info:
         await page.goto(server.PREFIX + "/error.html")
     error = await error_info.value
+    assert error.name == "Error"
     assert error.message == "Fancy error!"
     stack = await page.evaluate("window.e.stack")
     # Note that WebKit reports the stack of the 'throw' statement instead of the Error constructor call.
@@ -406,33 +407,42 @@ async def test_page_error_should_fire(page, server, is_webkit):
     assert error.stack == stack
 
 
-async def test_page_error_should_handle_odd_values(page, is_firefox):
+async def test_page_error_should_handle_odd_values(page):
     cases = [["null", "null"], ["undefined", "undefined"], ["0", "0"], ['""', ""]]
     for [value, message] in cases:
         async with page.expect_event("pageerror") as error_info:
             await page.evaluate(f"() => setTimeout(() => {{ throw {value}; }}, 0)")
         error = await error_info.value
-        assert (
-            error.message == ("uncaught exception: " + message) if is_firefox else value
-        )
+        assert error.message == message
 
 
-@pytest.mark.skip_browser("firefox")
 async def test_page_error_should_handle_object(page, is_chromium):
-    # Firefox just does not report this error.
     async with page.expect_event("pageerror") as error_info:
         await page.evaluate("() => setTimeout(() => { throw {}; }, 0)")
     error = await error_info.value
     assert error.message == "Object" if is_chromium else "[object Object]"
 
 
-@pytest.mark.skip_browser("firefox")
 async def test_page_error_should_handle_window(page, is_chromium):
-    # Firefox just does not report this error.
     async with page.expect_event("pageerror") as error_info:
         await page.evaluate("() => setTimeout(() => { throw window; }, 0)")
     error = await error_info.value
     assert error.message == "Window" if is_chromium else "[object Window]"
+
+
+async def test_page_error_should_pass_error_name_property(page):
+    async with page.expect_event("pageerror") as error_info:
+        await page.evaluate(
+            """() => setTimeout(() => {
+            const error = new Error("my-message");
+            error.name = "my-name";
+            throw error;
+        }, 0)
+        """
+        )
+    error = await error_info.value
+    assert error.message == "my-message"
+    assert error.name == "my-name"
 
 
 expected_output = "<html><head></head><body><div>hello</div></body></html>"
@@ -903,9 +913,7 @@ async def test_fill_should_fill_textarea(page, server):
     assert await page.evaluate("result") == "some value"
 
 
-@pytest.mark.skip_browser("webkit")
 async def test_fill_should_fill_input(page, server):
-    # Disabled as in upstream, we should validate time in the Playwright lib
     await page.goto(server.PREFIX + "/input/textarea.html")
     await page.fill("input", "some value")
     assert await page.evaluate("result") == "some value"

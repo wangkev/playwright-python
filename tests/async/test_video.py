@@ -23,7 +23,7 @@ async def test_should_expose_video_path(browser, tmpdir, server):
     await page.context.close()
 
 
-async def test_short_video_should_exist(browser, tmpdir, server):
+async def test_short_video_should_throw(browser, tmpdir, server):
     page = await browser.new_page(record_video_dir=tmpdir)
     await page.goto(server.PREFIX + "/grid.html")
     path = await page.video.path()
@@ -32,8 +32,8 @@ async def test_short_video_should_exist(browser, tmpdir, server):
     assert os.path.exists(path)
 
 
-async def test_short_video_should_exist_persistent_context(
-    browser_type, tmpdir, launch_arguments
+async def test_short_video_should_throw_persistent_context(
+    browser_type, tmpdir, launch_arguments, server
 ):
     context = await browser_type.launch_persistent_context(
         str(tmpdir),
@@ -42,7 +42,8 @@ async def test_short_video_should_exist_persistent_context(
         record_video_dir=str(tmpdir) + "1",
     )
     page = context.pages[0]
+    await page.goto(server.PREFIX + "/grid.html")
     await context.close()
+
     path = await page.video.path()
     assert str(tmpdir) in str(path)
-    assert os.path.exists(path)

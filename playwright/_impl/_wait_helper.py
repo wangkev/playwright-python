@@ -15,25 +15,23 @@
 import asyncio
 import uuid
 from asyncio.tasks import Task
-from typing import Any, Callable, Generic, List, Tuple, TypeVar
+from typing import Any, Callable, List, Tuple
 
 from pyee import EventEmitter
 
 from playwright._impl._api_types import Error, TimeoutError
 from playwright._impl._connection import ChannelOwner
 
-T = TypeVar("T")
 
-
-class WaitHelper(Generic[T]):
-    def __init__(self, channel_owner: ChannelOwner, name: str) -> None:
+class WaitHelper:
+    def __init__(self, channel_owner: ChannelOwner, api_name: str) -> None:
         self._result: asyncio.Future = asyncio.Future()
         self._wait_id = uuid.uuid4().hex
         self._loop = channel_owner._loop
         self._pending_tasks: List[Task] = []
         self._channel_owner = channel_owner
         self._registered_listeners: List[Tuple[EventEmitter, str, Callable]] = []
-        channel_owner._wait_for_event_info_before(self._wait_id, name)
+        channel_owner._wait_for_event_info_before(self._wait_id, api_name)
 
     def reject_on_event(
         self,
@@ -93,3 +91,11 @@ class WaitHelper(Generic[T]):
 
     def result(self) -> asyncio.Future:
         return self._result
+
+
+def throw_on_timeout(timeout: float, exception: Exception) -> asyncio.Task:
+    async def throw() -> None:
+        await asyncio.sleep(timeout / 1000)
+        raise exception
+
+    return asyncio.create_task(throw())

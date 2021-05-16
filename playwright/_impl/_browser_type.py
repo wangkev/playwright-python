@@ -12,8 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union, cast
 
 from playwright._impl._api_structures import (
     Geolocation,
@@ -21,9 +22,15 @@ from playwright._impl._api_structures import (
     ProxySettings,
     ViewportSize,
 )
+from playwright._impl._api_types import Error
 from playwright._impl._browser import Browser, normalize_context_params
 from playwright._impl._browser_context import BrowserContext
-from playwright._impl._connection import ChannelOwner, from_channel
+from playwright._impl._connection import (
+    ChannelOwner,
+    Connection,
+    from_channel,
+    from_nullable_channel,
+)
 from playwright._impl._helper import (
     BrowserChannel,
     ColorScheme,
@@ -31,6 +38,8 @@ from playwright._impl._helper import (
     locals_to_params,
     not_installed_error,
 )
+from playwright._impl._transport import WebSocketTransport
+from playwright._impl._wait_helper import throw_on_timeout
 
 
 class BrowserType(ChannelOwner):
@@ -96,6 +105,7 @@ class BrowserType(ChannelOwner):
         downloadsPath: Union[str, Path] = None,
         slowMo: float = None,
         viewport: ViewportSize = None,
+        screen: ViewportSize = None,
         noViewport: bool = None,
         ignoreHTTPSErrors: bool = None,
         javaScriptEnabled: bool = None,
@@ -134,10 +144,82 @@ class BrowserType(ChannelOwner):
                 raise not_installed_error(f'"{self.name}" browser was not found.')
             raise e
 
+    async def connect_over_cdp(
+        self,
+        endpointURL: str,
+        timeout: float = None,
+        slow_mo: float = None,
+        headers: Dict[str, str] = None,
+    ) -> Browser:
+        params = locals_to_params(locals())
+        params["sdkLanguage"] = (
+            "python" if self._connection._is_sync else "python-async"
+        )
+        response = await self._channel.send_return_as_dict("connectOverCDP", params)
+        browser = cast(Browser, from_channel(response["browser"]))
+        browser._is_remote = True
+
+        default_context = cast(
+            Optional[BrowserContext],
+            from_nullable_channel(response.get("defaultContext")),
+        )
+        if default_context:
+            browser._contexts.append(default_context)
+            default_context._browser = browser
+        return browser
+
+    async def connect(
+        self,
+        ws_endpoint: str,
+        timeout: float = None,
+        slow_mo: float = None,
+        headers: Dict[str, str] = None,
+    ) -> Browser:
+        if timeout is None:
+            timeout = 30000
+
+        transport = WebSocketTransport(
+            self._connection._loop, ws_endpoint, headers, slow_mo
+        )
+        connection = Connection(
+            self._connection._dispatcher_fiber,
+            self._connection._object_factory,
+            transport,
+        )
+        connection._is_sync = self._connection._is_sync
+        connection._loop = self._connection._loop
+        connection._loop.create_task(connection.run())
+        future = connection._loop.create_task(
+            connection.wait_for_object_with_known_name("Playwright")
+        )
+        timeout_future = throw_on_timeout(timeout, Error("Connection timed out"))
+        done, pending = await asyncio.wait(
+            {transport.on_error_future, future, timeout_future},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        if not future.done():
+            future.cancel()
+        if not timeout_future.done():
+            timeout_future.cancel()
+        playwright = next(iter(done)).result()
+        self._connection._child_ws_connections.append(connection)
+        pre_launched_browser = playwright._initializer.get("preLaunchedBrowser")
+        assert pre_launched_browser
+        browser = cast(Browser, from_channel(pre_launched_browser))
+        browser._is_remote = True
+        browser._is_connected_over_websocket = True
+
+        transport.once("close", browser._on_close)
+
+        return browser
+
 
 def normalize_launch_params(params: Dict) -> None:
     if "env" in params:
-        params["env"] = {name: str(value) for [name, value] in params["env"].items()}
+        params["env"] = [
+            {"name": name, "value": str(value)}
+            for [name, value] in params["env"].items()
+        ]
     if "ignoreDefaultArgs" in params:
         if params["ignoreDefaultArgs"] is True:
             params["ignoreAllDefaultArgs"] = True

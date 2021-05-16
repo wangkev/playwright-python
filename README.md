@@ -1,4 +1,4 @@
-# 🎭 [Playwright](https://playwright.dev) for Python [![PyPI version](https://badge.fury.io/py/playwright.svg)](https://pypi.python.org/pypi/playwright/) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://aka.ms/playwright-slack)
+# 🎭 [Playwright](https://playwright.dev) for Python [![PyPI version](https://badge.fury.io/py/playwright.svg)](https://pypi.python.org/pypi/playwright/) [![Anaconda version](https://img.shields.io/conda/v/microsoft/playwright)](https://anaconda.org/Microsoft/playwright) [![Join Slack](https://img.shields.io/badge/join-slack-infomational)](https://aka.ms/playwright-slack)
 
 #### [Docs](https://playwright.dev/python/docs/intro) | [API](https://playwright.dev/python/docs/api/class-playwright)
 
@@ -6,9 +6,9 @@ Playwright is a Python library to automate [Chromium](https://www.chromium.org/H
 
 |          | Linux | macOS | Windows |
 |   :---   | :---: | :---: | :---:   |
-| Chromium <!-- GEN:chromium-version -->90.0.4430.0<!-- GEN:stop --> | ✅ | ✅ | ✅ |
+| Chromium <!-- GEN:chromium-version -->92.0.4498.0<!-- GEN:stop --> | ✅ | ✅ | ✅ |
 | WebKit <!-- GEN:webkit-version -->14.2<!-- GEN:stop --> | ✅ | ✅ | ✅ |
-| Firefox <!-- GEN:firefox-version -->87.0b10<!-- GEN:stop --> | ✅ | ✅ | ✅ |
+| Firefox <!-- GEN:firefox-version -->89.0b6<!-- GEN:stop --> | ✅ | ✅ | ✅ |
 
 Headless execution is supported for all browsers on all platforms.
 
@@ -23,10 +23,10 @@ Headless execution is supported for all browsers on all platforms.
   - [Evaluate JS in browser](#evaluate-js-in-browser)
   - [Intercept network requests](#intercept-network-requests)
 - [Documentation](#documentation)
-- [Is Playwright ready?](#is-playwright-ready)
-- [Migration from the pre-release versions](#migration-from-the-pre-release-versions)
 
-## Usage
+## Usage - pip
+
+[![PyPI version](https://badge.fury.io/py/playwright.svg)](https://pypi.python.org/pypi/playwright/)
 
 ```sh
 pip install playwright
@@ -34,6 +34,19 @@ playwright install
 ```
 
 This installs Playwright and browser binaries for Chromium, Firefox and WebKit. Playwright requires Python 3.7+.
+
+## Usage - conda
+
+[![Anaconda version](https://img.shields.io/conda/v/microsoft/playwright)](https://anaconda.org/Microsoft/playwright)
+
+```sh
+conda config --add channels conda-forge
+conda config --add channels microsoft
+conda install playwright
+playwright install
+```
+
+This installs Playwright and browser binaries for Chromium, Firefox and WebKit with the conda package manager. Playwright requires a conda environment with Python 3.7+.
 
 #### Record and generate code
 
@@ -65,11 +78,11 @@ with sync_playwright() as p:
 
 #### Async API
 
-If you app is based on the modern asyncio loop and you are used to async/await constructs,
+If your app is based on the modern asyncio loop and you are used to async/await constructs,
 Playwright exposes Async API for you. You should use this API inside a Python REPL supporting `asyncio` like with `python -m asyncio`
 
 ```console
-$ python -m asyncio
+python -m asyncio
 ```
 
 ```py
@@ -121,7 +134,7 @@ Blocking REPL, as in CLI:
 Async REPL such as `asyncio` REPL:
 
 ```console
-$ python -m asyncio
+python -m asyncio
 ```
 
 ```py
@@ -177,7 +190,7 @@ async def main():
             geolocation={"longitude": 12.492507, "latitude": 41.889938},
             permissions=["geolocation"]
         )
-        page = await context.newPage()
+        page = await context.new_page()
         await page.goto("https://maps.google.com")
         await page.click("text="Your location"")
         await page.screenshot(path="colosseum-iphone.png")
@@ -288,39 +301,3 @@ asyncio.run(main())
 ## Documentation
 
 Check out our [new documentation site](https://playwright.dev/python/docs/intro)!
-
-## Is Playwright ready?
-
-Yes, Playwright for Python is ready! The latest version of Playwright for
-Python is 1.8.0a. We are ready to drop the Alpha bit once we hear from you.
-Once it is gone, we will become semver compatible and the API will be
-frozen in its present form for years. We will still be adding features with
-every release, but we promise to not break it anymore!
-
-## Migration from the pre-release versions
-
-The API has changed since the last 0.170.0 version:
-
-- Snake case notation for methods and arguments:
-
-  ```py
-  # old
-  browser.newPage()
-  ```
-
-  ```py
-  # new
-  browser.new_page()
-  ```
-
-- Import has changed to include sync vs async mode explicitly:
-  ```py
-  # old
-  from playwright import sync_playwright
-  ```
-  ```py
-  # new
-  from playwright.sync_api import sync_playwright
-  ```
-
-That's about it! Our new [doc site](https://playwright.dev/python/docs/intro) uses proper notation and examples for the new API.

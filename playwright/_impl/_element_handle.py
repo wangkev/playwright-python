@@ -20,7 +20,12 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Union, ca
 from playwright._impl._api_structures import FilePayload, FloatRect, Position
 from playwright._impl._connection import ChannelOwner, from_nullable_channel
 from playwright._impl._file_chooser import normalize_file_payloads
-from playwright._impl._helper import KeyboardModifier, MouseButton, locals_to_params
+from playwright._impl._helper import (
+    KeyboardModifier,
+    MouseButton,
+    locals_to_params,
+    make_dirs_for_file,
+)
 from playwright._impl._js_handle import (
     JSHandle,
     Serializable,
@@ -99,6 +104,7 @@ class ElementHandle(JSHandle):
         position: Position = None,
         timeout: float = None,
         force: bool = None,
+        trial: bool = None,
     ) -> None:
         await self._channel.send("hover", locals_to_params(locals()))
 
@@ -112,6 +118,7 @@ class ElementHandle(JSHandle):
         timeout: float = None,
         force: bool = None,
         noWaitAfter: bool = None,
+        trial: bool = None,
     ) -> None:
         await self._channel.send("click", locals_to_params(locals()))
 
@@ -124,6 +131,7 @@ class ElementHandle(JSHandle):
         timeout: float = None,
         force: bool = None,
         noWaitAfter: bool = None,
+        trial: bool = None,
     ) -> None:
         await self._channel.send("dblclick", locals_to_params(locals()))
 
@@ -152,6 +160,7 @@ class ElementHandle(JSHandle):
         timeout: float = None,
         force: bool = None,
         noWaitAfter: bool = None,
+        trial: bool = None,
     ) -> None:
         await self._channel.send("tap", locals_to_params(locals()))
 
@@ -195,12 +204,22 @@ class ElementHandle(JSHandle):
         await self._channel.send("press", locals_to_params(locals()))
 
     async def check(
-        self, timeout: float = None, force: bool = None, noWaitAfter: bool = None
+        self,
+        position: Position = None,
+        timeout: float = None,
+        force: bool = None,
+        noWaitAfter: bool = None,
+        trial: bool = None,
     ) -> None:
         await self._channel.send("check", locals_to_params(locals()))
 
     async def uncheck(
-        self, timeout: float = None, force: bool = None, noWaitAfter: bool = None
+        self,
+        position: Position = None,
+        timeout: float = None,
+        force: bool = None,
+        noWaitAfter: bool = None,
+        trial: bool = None,
     ) -> None:
         await self._channel.send("uncheck", locals_to_params(locals()))
 
@@ -221,6 +240,7 @@ class ElementHandle(JSHandle):
         encoded_binary = await self._channel.send("screenshot", params)
         decoded_binary = base64.b64decode(encoded_binary)
         if path:
+            make_dirs_for_file(path)
             with open(path, "wb") as fd:
                 fd.write(decoded_binary)
         return decoded_binary
